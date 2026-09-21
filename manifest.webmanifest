@@ -1,42 +1,44 @@
 {
   "lang": "en-US",
-  "id": "my-tv-gabe",
   "name": "My TV",
+  "id": "my-tv-gabe",
   "short_name": "My TV",
+  "categories": ["entertainment"],
   "description": "Channel browser for KaiOS 3 - navigate live streams with left/right, D-pad style.",
-  "launch_path": "/index.html",
-  "developer": {
-    "name": "GabeBrPierce",
-    "url": "https://github.com/GabeBrPierce/my-tv"
-  },
-  "type": "privileged",
-  "theme_color": "#000000",
   "icons": [
     { "src": "/icons/icon-56.png", "type": "image/png", "sizes": "56x56" },
     { "src": "/icons/icon-112.png", "type": "image/png", "sizes": "112x112" }
   ],
-  "orientation": ["landscape-primary"],
+  "start_url": "/index.html",
+  "theme_color": "#000000",
+  "orientation": "landscape-primary",
+  "type": "privileged",
   "fullscreen": "true",
-  "chrome": {
-    "navigation": false
-  },
-  "permissions": {
-    "systemXHR": {
-      "description": "Fetch the channel list from GitHub"
-    },
-    "alarm": {
-      "description": "Schedule the two 'program starting soon' recording reminders (5 minutes prior and at start time) so they fire even if the app isn't open"
-    },
-    "desktop-notification": {
-      "description": "Show the recording reminder as a notification"
-    },
-    "audio-channel-content": {
-      "description": "Keep playing audio when the app is backgrounded or the screen is off, if the user opts into background playback in Settings"
-    }
-  },
   "b2g_features": {
-    "version": "1.0.6",
+    "version": "1.0.7",
     "subtitle": "Live TV channel browser",
+    "origin": "my-tv-gabe",
+    "developer": {
+      "name": "GabeBrPierce",
+      "url": "https://github.com/GabeBrPierce/my-tv"
+    },
+    "permissions": {
+      "systemXHR": {
+        "description": "Fetch the channel list from GitHub"
+      },
+      "alarm": {
+        "description": "Schedule the two 'program starting soon' recording reminders (5 minutes prior and at start time) so they fire even if the app isn't open"
+      },
+      "desktop-notification": {
+        "description": "Show the recording reminder as a notification"
+      },
+      "audio-channel-content": {
+        "description": "Keep playing audio when the app is backgrounded or the screen is off, if the user opts into background playback in Settings"
+      }
+    },
+    "chrome": {
+      "navigation": false
+    },
     "softkeys": true
   }
 }
