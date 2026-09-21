@@ -142,6 +142,25 @@ html, body {
   z-index: 5;
 }
 
+/* Always-on channel title (unlike #banner, never auto-hides). Top-left,
+   so it never overlaps #banner (bottom) or #channel-entry (top-right). */
+#channel-title {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  max-width: 70%;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 3px;
+  z-index: 4;
+}
+
 #loading,
 #error {
   position: absolute;
@@ -292,16 +311,30 @@ html, body {
   font-weight: bold;
 }
 
-/* Search */
+/* Search — a real <input>, styled to match the app rather than the
+   browser's default chrome. Typing/multi-tap/backspace/cursor movement
+   are all handled natively by KaiOS's own text-input IME; we only listen
+   for its `input` event to filter results. */
 .search-query {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--fg-dim);
+  width: 100%;
+  font: inherit;
   font-size: 18px;
   font-weight: bold;
+  color: var(--fg);
   padding: 6px 8px;
   background: rgba(128, 128, 128, 0.18);
   border-radius: 4px;
   margin-bottom: 6px;
   min-height: 1.4em;
   flex: 0 0 auto;
+}
+
+.search-query::placeholder {
+  color: var(--fg-dim);
+  font-weight: normal;
 }
 
 /* Toast */

@@ -52,16 +52,29 @@ finished app.
   — there's no real ad network wired up (that needs an actual ad SDK and
   account credentials); swap `CREATIVES` in this file for a real one.
 - `js/menu.js` — the SoftLeft menu and everything it opens: Browse
-  Channels (EPG grid, D-pad in both axes), Add/View Favorites, Search
-  (numeric multi-tap, like classic T9 texting), and a Settings screen for
-  dark mode + background playback. That Settings screen is an addition
-  beyond the originally-specified 5 menu items, added because "enable/
-  disable that feature in settings" needed somewhere to live.
-- `js/app.js` — ties everything together: left/right cycling with
-  wrap-around, numeric keypad channel entry (by each channel's stable
-  `number`, not array position), the on-screen banner, last-watched
-  channel persistence, auto-skip on stream failure, SoftRight rotation,
-  and the background-playback popup.
+  Channels (EPG grid, D-pad in both axes), Add/View Favorites, Search,
+  and a Settings screen for dark mode + background playback. That
+  Settings screen is an addition beyond the originally-specified 5 menu
+  items, added because "enable/disable that feature in settings" needed
+  somewhere to live. Search is a real `<input>` — KaiOS's own text-input
+  IME handles typing/multi-tap/backspace/cursor movement natively; we
+  only listen for its `input` event to filter results. It's explicitly
+  blurred on the way out of the view (see `hideAllViews()`), because a
+  focused native element left behind can keep catching D-pad input after
+  the view that owns it closes — confirmed the hard way (see next bullet).
+- `js/app.js` — ties everything together: up/down channel cycling with
+  wrap-around, left/right seek, numeric keypad channel entry (by each
+  channel's stable `number`, not array position), a persistent
+  channel-title label (`#channel-title` — unlike the flash `#banner`,
+  it never auto-hides, so you can always glance and confirm what's
+  playing), last-watched channel persistence,
+  auto-skip on stream failure, SoftRight rotation, and the
+  background-playback popup. That popup's two buttons are real `<button>`
+  elements but carry `tabindex="-1"` — on a real device, KaiOS's D-pad
+  spatial navigation was auto-focusing them, which then kept intercepting
+  Up/Down (breaking channel navigation) even after the popup closed. The
+  buttons' highlighted state is driven entirely by app.js's own key
+  handling, not real focus, so they don't need to be natively focusable.
 - `icons/icon-56.png`, `icons/icon-112.png` — real, ready-to-use placeholder
   icons at the exact KaiOS-required sizes (see `icons/icon-source.svg` for
   the design and `icons/make_icons.py` if you want to tweak the colors and
@@ -148,9 +161,9 @@ finished app.
   regardless of how many 15-minute blocks it spans), repaging the window
   if needed. **Enter** tunes to a currently-airing program or sets
   reminders for a future one.
-- Inside Search: **0-9** is multi-tap text entry (press a key repeatedly
-  to cycle its letters, like classic T9 texting), **Up/Down** picks a
-  result, **Enter** tunes to it.
+- Inside Search: a real text input — type normally (KaiOS's own IME
+  handles multi-tap), **Up/Down** picks a result as they filter live,
+  **Enter** tunes to it.
 
 Tested at KaiOS's native 320×240 landscape resolution in a browser (see
 `.claude/launch.json` for the local static server used to do that).

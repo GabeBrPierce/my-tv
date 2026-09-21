@@ -7,7 +7,8 @@
  *    within the current stream's DVR buffer (if it has one)
  *  - numeric keypad entry jumps straight to a channel (by its stable
  *    `number`, not array position — see channels.js)
- *  - banner shows briefly on every channel change
+ *  - banner shows briefly on every channel change; a persistent
+ *    channel-title label (never auto-hides) stays up the whole time
  *  - last-watched channel is remembered across launches
  *  - broken streams auto-skip to the next channel
  *  - SoftLeft ("[" for desktop testing) opens the menu (Browse Channels /
@@ -36,6 +37,7 @@
   var bannerNameEl = document.getElementById("banner-name");
   var bannerProgramEl = document.getElementById("banner-program");
   var bannerNumberEl = document.getElementById("banner-number");
+  var channelTitleEl = document.getElementById("channel-title");
   var channelEntryEl = document.getElementById("channel-entry");
   var channelEntryValueEl = document.getElementById("channel-entry-value");
   var loadingEl = document.getElementById("loading");
@@ -60,6 +62,11 @@
 
   function hideError() {
     errorEl.classList.add("hidden");
+  }
+
+  function updateChannelTitle(channel) {
+    channelTitleEl.textContent = channel.number + ". " + channel.name;
+    channelTitleEl.classList.remove("hidden");
   }
 
   function showBanner(channel) {
@@ -96,6 +103,7 @@
     hideError();
     Player.play(channel.streamUrl);
     RewindBuffer.start(Player.getVideoElement(), channel.id);
+    updateChannelTitle(channel);
 
     if (!opts.silent) {
       showBanner(channel);

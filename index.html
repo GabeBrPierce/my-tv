@@ -25,6 +25,11 @@
       <div id="banner-number"></div>
     </div>
 
+    <!-- Always-on channel title, separate from the banner above (which
+         auto-hides after a few seconds) so you can glance and confirm
+         what's playing at any time. -->
+    <div id="channel-title" class="hidden"></div>
+
     <div id="channel-entry" class="hidden">
       <span id="channel-entry-value"></span>
     </div>
@@ -54,9 +59,9 @@
 
     <div id="search-view" class="view hidden">
       <div class="view-title">Search</div>
-      <div id="search-query" class="search-query"></div>
+      <input id="search-input" class="search-query" type="text" placeholder="Type to search…" autocomplete="off" />
       <ul id="search-results"></ul>
-      <div class="view-hint">Numeric keys: multi-tap text &middot; SoftLeft: menu</div>
+      <div class="view-hint">Up/Down: pick a result &middot; Enter: tune &middot; SoftLeft: menu</div>
     </div>
 
     <div id="settings-view" class="view hidden">
@@ -76,9 +81,14 @@
     <div id="bg-playback-popup" class="hidden">
       <p>My TV can keep playing audio when you close the app or lock your
         phone, like a podcast player.</p>
+      <!-- tabindex="-1": these aren't meant to receive real DOM/native
+           D-pad focus — app.js drives the highlighted-button state itself
+           via Left/Right/Enter. Letting the platform's own spatial-nav
+           focus a real <button> here was capturing later Up/Down presses
+           (even after the popup closed), breaking channel navigation. -->
       <div class="popup-actions">
-        <button id="bg-playback-enable-btn" type="button">Enable Background Playback</button>
-        <button id="bg-playback-close-btn" type="button">Close</button>
+        <button id="bg-playback-enable-btn" type="button" tabindex="-1">Enable Background Playback</button>
+        <button id="bg-playback-close-btn" type="button" tabindex="-1">Close</button>
       </div>
     </div>
   </div>

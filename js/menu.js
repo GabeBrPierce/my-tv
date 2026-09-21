@@ -10,6 +10,14 @@
  * (per the explicit Browse Channels spec, applied consistently to the
  * others); SoftLeft from "menu" closes back to "closed".
  *
+ * Search uses a real <input> rather than hand-rolled multi-tap key
+ * handling — KaiOS's own text-input IME already does multi-tap, cursor
+ * movement, and backspace natively, so we just listen for its `input`
+ * event. See hideAllViews() for why it's explicitly blurred on the way
+ * out: a focused native element can otherwise keep catching D-pad input
+ * after the view that owns it closes (this bit us once already with the
+ * background-playback popup's buttons — see index.html).
+ *
  * Depends on a small hook object the host app provides via Menu.init():
  * { getCurrentChannel, tuneToChannel }.
  */
@@ -44,22 +52,8 @@ var Menu = (function () {
   var favoritesChannels = [];
   var favoritesIndex = 0;
 
-  var searchQuery = "";
   var searchResults = [];
   var searchIndex = 0;
-  var multiTap = { key: null, cycle: 0, timer: null };
-  var MULTITAP_KEYS = {
-    "1": [".", ",", "'", "1"],
-    "2": ["a", "b", "c", "2"],
-    "3": ["d", "e", "f", "3"],
-    "4": ["g", "h", "i", "4"],
-    "5": ["j", "k", "l", "5"],
-    "6": ["m", "n", "o", "6"],
-    "7": ["p", "q", "r", "s", "7"],
-    "8": ["t", "u", "v", "8"],
-    "9": ["w", "x", "y", "z", "9"],
-    "0": [" ", "0"]
-  };
 
   var settingsHighlight = 0;
   var SETTINGS_ITEMS = ["theme", "background-playback"];
@@ -78,11 +72,13 @@ var Menu = (function () {
     els.favoritesView = $("favorites-view");
     els.favoritesList = $("favorites-list");
     els.searchView = $("search-view");
-    els.searchQuery = $("search-query");
+    els.searchInput = $("search-input");
     els.searchResults = $("search-results");
     els.settingsView = $("settings-view");
     els.settingsList = $("settings-list");
     els.toast = $("toast");
+
+    els.searchInput.addEventListener("input", runSearch);
 
     renderMenuList();
   }
@@ -107,6 +103,10 @@ var Menu = (function () {
     els.favoritesView.classList.add("hidden");
     els.searchView.classList.add("hidden");
     els.settingsView.classList.add("hidden");
+    // Explicitly drop focus so it never lingers on the (now-hidden) search
+    // input into another view — the same class of bug as the bg-playback
+    // popup's buttons capturing later D-pad input (see index.html).
+    els.searchInput.blur();
   }
 
   function open() {
@@ -416,61 +416,26 @@ var Menu = (function () {
     close();
   }
 
-  // --- Search (numeric multi-tap) ---------------------------------------
+  // --- Search --------------------------------------------------------
+  //
+  // A real <input>: typing, backspace, cursor movement, and multi-tap
+  // letter entry are all handled natively by KaiOS's own text-input IME.
+  // We only listen for the input's `input` event to re-filter results —
+  // no hand-rolled key handling here.
 
   function openSearch() {
     state = "search";
     hideAllViews();
     els.searchView.classList.remove("hidden");
-    searchQuery = "";
+    els.searchInput.value = "";
     searchResults = [];
     searchIndex = 0;
-    resetMultiTap();
     renderSearch();
-  }
-
-  function resetMultiTap() {
-    clearTimeout(multiTap.timer);
-    multiTap.key = null;
-    multiTap.cycle = 0;
-    multiTap.timer = null;
-  }
-
-  function commitMultiTapChar() {
-    resetMultiTap();
-  }
-
-  function handleSearchDigit(digit) {
-    var letters = MULTITAP_KEYS[digit];
-    if (!letters) return;
-
-    if (multiTap.key === digit) {
-      multiTap.cycle = (multiTap.cycle + 1) % letters.length;
-      searchQuery = searchQuery.slice(0, -1) + letters[multiTap.cycle];
-    } else {
-      if (multiTap.key !== null) commitMultiTapChar();
-      multiTap.key = digit;
-      multiTap.cycle = 0;
-      searchQuery += letters[0];
-    }
-    clearTimeout(multiTap.timer);
-    multiTap.timer = setTimeout(commitMultiTapChar, 800);
-
-    runSearch();
-  }
-
-  function handleSearchBackspace() {
-    if (searchQuery.length === 0) {
-      backToMenu();
-      return;
-    }
-    searchQuery = searchQuery.slice(0, -1);
-    resetMultiTap();
-    runSearch();
+    els.searchInput.focus();
   }
 
   function runSearch() {
-    var q = searchQuery.trim().toLowerCase();
+    var q = els.searchInput.value.trim().toLowerCase();
     if (q.length === 0) {
       searchResults = [];
     } else {
@@ -483,7 +448,6 @@ var Menu = (function () {
   }
 
   function renderSearch() {
-    els.searchQuery.textContent = searchQuery.length ? searchQuery : "Type to search…";
     els.searchResults.innerHTML = "";
     searchResults.forEach(function (channel, i) {
       var li = document.createElement("li");
@@ -586,11 +550,15 @@ var Menu = (function () {
     }
 
     if (state === "search") {
-      if (key >= "0" && key <= "9") handleSearchDigit(key);
-      else if (key === "ArrowUp") searchMove(-1);
+      // Typing, backspace, and cursor movement are handled natively by
+      // the focused <input> (see openSearch()) — this never calls
+      // preventDefault, so those still reach it regardless of what we
+      // return here. We just also intercept the results-list navigation
+      // (not native input behavior) and make sure app.js's normal
+      // channel/seek handling doesn't also fire while search is open.
+      if (key === "ArrowUp") searchMove(-1);
       else if (key === "ArrowDown") searchMove(1);
       else if (key === "Enter") searchActivate();
-      else if (key === "Backspace") handleSearchBackspace();
       return true;
     }
 
