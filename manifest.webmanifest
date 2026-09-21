@@ -5,6 +5,10 @@
   "short_name": "My TV",
   "description": "Channel browser for KaiOS 3 - navigate live streams with left/right, D-pad style.",
   "launch_path": "/index.html",
+  "developer": {
+    "name": "GabeBrPierce",
+    "url": "https://github.com/GabeBrPierce/my-tv"
+  },
   "type": "privileged",
   "theme_color": "#000000",
   "icons": [
@@ -33,9 +37,6 @@
   "b2g_features": {
     "version": "1.0.6",
     "subtitle": "Live TV channel browser",
-    "developer": {
-      "name": "GabeBrPierce"
-    },
     "softkeys": true
   }
 }
