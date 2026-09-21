@@ -14,14 +14,14 @@
   "orientation": "landscape-primary",
   "type": "privileged",
   "fullscreen": "true",
+  "developer": {
+    "name": "GabeBrPierce",
+    "url": "https://github.com/GabeBrPierce/my-tv"
+  },
   "b2g_features": {
     "version": "1.0.7",
     "subtitle": "Live TV channel browser",
     "origin": "my-tv-gabe",
-    "developer": {
-      "name": "GabeBrPierce",
-      "url": "https://github.com/GabeBrPierce/my-tv"
-    },
     "permissions": {
       "systemXHR": {
         "description": "Fetch the channel list from GitHub"
