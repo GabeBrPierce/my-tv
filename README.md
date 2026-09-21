@@ -68,7 +68,11 @@ finished app.
   channel-title label (`#channel-title` — unlike the flash `#banner`,
   it never auto-hides, so you can always glance and confirm what's
   playing), last-watched channel persistence,
-  auto-skip on stream failure, SoftRight rotation, and the
+  direction-aware auto-skip on stream failure (continues whichever way
+  you were browsing — it used to always skip forward, so pressing Down
+  onto a dead channel would auto-skip forward right back to the channel
+  you were just on, looking exactly like Down was broken), SoftRight
+  rotation, and the
   background-playback popup. That popup's two buttons are real `<button>`
   elements but carry `tabindex="-1"` — on a real device, KaiOS's D-pad
   spatial navigation was auto-focusing them, which then kept intercepting

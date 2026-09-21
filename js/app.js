@@ -116,12 +116,27 @@
     }
   }
 
+  // Which way the dead-stream auto-skip (see Player.onError in init())
+  // should continue: without this it always skipped forward regardless
+  // of which way you were actually browsing, so pressing Down onto a
+  // dead channel would skip forward right back to the channel you were
+  // just on — looking exactly like Down was broken/going the wrong way.
+  var lastDirection = 1;
+
   function nextChannel() {
+    lastDirection = 1;
     tuneToIndex(currentIndex + 1);
   }
 
   function prevChannel() {
+    lastDirection = -1;
     tuneToIndex(currentIndex - 1);
+  }
+
+  /** Used only by the dead-stream auto-skip: continues in whichever
+   * direction the user was last browsing, without resetting it. */
+  function autoSkip() {
+    tuneToIndex(currentIndex + lastDirection);
   }
 
   var SEEK_STEP_SECONDS = 15;
@@ -329,9 +344,10 @@
     });
 
     Player.onError(function () {
-      // Stream failed to load/play — auto-skip to next channel
-      // (requirements.md section 3: don't show a dead screen).
-      nextChannel();
+      // Stream failed to load/play — auto-skip onward (requirements.md
+      // section 3: don't show a dead screen), continuing in whichever
+      // direction the user was browsing rather than always forward.
+      autoSkip();
     });
 
     Channels.fetchChannels().then(function (result) {
