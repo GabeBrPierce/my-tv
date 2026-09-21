@@ -6,10 +6,10 @@
   "categories": ["entertainment"],
   "description": "Channel browser for KaiOS 3 - navigate live streams with left/right, D-pad style.",
   "icons": [
-    { "src": "/icons/icon-56.png", "type": "image/png", "sizes": "56x56" },
-    { "src": "/icons/icon-112.png", "type": "image/png", "sizes": "112x112" }
+    { "src": "icons/icon-56.png", "type": "image/png", "sizes": "56x56" },
+    { "src": "icons/icon-112.png", "type": "image/png", "sizes": "112x112" }
   ],
-  "start_url": "/index.html",
+  "start_url": "index.html",
   "theme_color": "#000000",
   "orientation": "landscape-primary",
   "type": "privileged",
