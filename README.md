@@ -18,7 +18,12 @@ finished app.
   anything.
 - `js/player.js` — loads a channel's stream into the `<video>` element,
   using native HLS where available and falling back to hls.js. Reports
-  playback failures so the app can auto-skip.
+  playback failures so the app can auto-skip. hls.js is configured with
+  `backBufferLength: 30` — its default is to never evict already-played
+  buffer, which on a live channel left running a long time (a news
+  channel, reported by hand) grows memory until the app crashes. This
+  caps how much already-played video stays buffered behind the current
+  position.
 - `js/vendor/hls.min.js` — hls.js, pinned at v1.7.3 (installed via
   `npm install hls.js`, verified against npm's published release). Loaded
   as a fallback where native HLS isn't available.
@@ -47,21 +52,32 @@ finished app.
 - `js/recorder.js` — on-demand recording for the menu's "Record Program."
   Same `captureStream()` mechanism and same cross-origin limitation as
   `buffer.js` — confirmed by testing, not just a theoretical caveat.
+  Unlike the rewind buffer it keeps everything from start to stop rather
+  than evicting old chunks, so it auto-stops and saves past 20 minutes —
+  the same unbounded-memory-growth risk as the hls.js back-buffer above,
+  just for a feature that (per the cross-origin limitation) rarely
+  actually gets this far in practice.
 - `js/ads.js` — banner ad strip (rotates every 30s) and a fullscreen ad
   (every 10 minutes in rotated/immersive mode). **Placeholder creatives**
   — there's no real ad network wired up (that needs an actual ad SDK and
   account credentials); swap `CREATIVES` in this file for a real one.
 - `js/menu.js` — the SoftLeft menu and everything it opens: Browse
-  Channels (EPG grid, D-pad in both axes), Add/View Favorites, Search,
-  and a Settings screen for dark mode + background playback. That
-  Settings screen is an addition beyond the originally-specified 5 menu
-  items, added because "enable/disable that feature in settings" needed
-  somewhere to live. Search is a real `<input>` — KaiOS's own text-input
-  IME handles typing/multi-tap/backspace/cursor movement natively; we
-  only listen for its `input` event to filter results. It's explicitly
-  blurred on the way out of the view (see `hideAllViews()`), because a
-  focused native element left behind can keep catching D-pad input after
-  the view that owns it closes — confirmed the hard way (see next bullet).
+  Channels (EPG grid, D-pad in both axes, plus a filter — see below),
+  Add/View Favorites, Search, and a Settings screen for dark mode +
+  background playback. That Settings screen is an addition beyond the
+  originally-specified 5 menu items, added because "enable/disable that
+  feature in settings" needed somewhere to live. Search and the Browse
+  filter are both real `<input>`s — KaiOS's own text-input IME handles
+  typing/multi-tap/backspace/cursor movement natively; we only listen
+  for `input` events to filter results/rows. Both are explicitly blurred
+  on the way out of their view (see `hideAllViews()`), because a focused
+  native element left behind can keep catching D-pad input after the
+  view that owns it closes — confirmed the hard way (see next bullet).
+  Browse's filter isn't focused by default (Left/Right there means
+  next/previous *program*, not cursor movement, and would conflict) —
+  instead, typing any single character while browsing redirects focus
+  into it and lets the keystroke land there natively, a "type to filter"
+  pattern like a file manager or spreadsheet.
 - `js/app.js` — ties everything together: up/down channel cycling with
   wrap-around, left/right seek, numeric keypad channel entry (by each
   channel's stable `number`, not array position), a persistent
@@ -164,7 +180,8 @@ finished app.
   the next/previous whole *program* (one press skips a full show,
   regardless of how many 15-minute blocks it spans), repaging the window
   if needed. **Enter** tunes to a currently-airing program or sets
-  reminders for a future one.
+  reminders for a future one. Typing any character filters the channel
+  list by name (1,700+ channels is a lot to page through one at a time).
 - Inside Search: a real text input — type normally (KaiOS's own IME
   handles multi-tap), **Up/Down** picks a result as they filter live,
   **Enter** tunes to it.

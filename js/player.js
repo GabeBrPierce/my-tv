@@ -34,7 +34,16 @@ var Player = (function () {
            count as that interaction in practice. */
       });
     } else if (window.Hls && window.Hls.isSupported()) {
-      hls = new window.Hls();
+      hls = new window.Hls({
+        // hls.js's default is to never evict already-played buffer
+        // (backBufferLength: Infinity) — fine for a short clip, but on a
+        // live channel left running for a long time (e.g. a news
+        // channel) the buffered media just keeps growing until the app
+        // runs out of memory and crashes. Cap how much already-played
+        // video stays buffered behind the current position; segments
+        // older than that get evicted automatically.
+        backBufferLength: 30
+      });
       hls.loadSource(streamUrl);
       hls.attachMedia(videoEl);
       hls.on(window.Hls.Events.ERROR, function (event, data) {

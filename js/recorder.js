@@ -18,9 +18,18 @@
  */
 
 var Recorder = (function () {
+  // Unlike buffer.js's rewind ring buffer, this keeps everything from
+  // start to stop by design — but "everything" still needs a ceiling, or
+  // an accidentally-left-running recording grows memory forever the same
+  // way the unbounded hls.js back-buffer did (see player.js). Auto-stop
+  // and finalize past this, rather than silently truncating.
+  var MAX_RECORDING_MS = 20 * 60 * 1000;
+
   var recorder = null;
   var chunks = [];
   var recordingChannel = null;
+  var autoStopTimer = null;
+  var onAutoStopCallback = null;
 
   function isSupported(videoEl) {
     return (
@@ -60,6 +69,12 @@ var Recorder = (function () {
           if (e.data && e.data.size > 0) chunks.push(e.data);
         };
         recorder.start(1000);
+        clearTimeout(autoStopTimer);
+        autoStopTimer = setTimeout(function () {
+          stopAndSave().then(function (result) {
+            if (onAutoStopCallback) onAutoStopCallback(result);
+          });
+        }, MAX_RECORDING_MS);
         return true;
       } catch (e) {
         console.warn("[Recorder] failed to start:", e);
@@ -81,6 +96,7 @@ var Recorder = (function () {
   /** Stops the recording and resolves { url, channel } for a blob URL of
    * everything captured, or null if there was nothing to save. */
   function stopAndSave() {
+    clearTimeout(autoStopTimer);
     if (!recorder) return Promise.resolve(null);
     var ch = recordingChannel;
     return new Promise(function (resolve) {
@@ -105,6 +121,7 @@ var Recorder = (function () {
   }
 
   function cancel() {
+    clearTimeout(autoStopTimer);
     if (recorder && recorder.state !== "inactive") {
       try { recorder.stop(); } catch (e) { /* ignore */ }
     }
@@ -113,12 +130,18 @@ var Recorder = (function () {
     recordingChannel = null;
   }
 
+  /** Called with stopAndSave()'s result if MAX_RECORDING_MS is hit. */
+  function onAutoStop(cb) {
+    onAutoStopCallback = cb;
+  }
+
   return {
     isSupported: isSupported,
     isRecording: isRecording,
     getRecordingChannel: getRecordingChannel,
     start: start,
     stopAndSave: stopAndSave,
-    cancel: cancel
+    cancel: cancel,
+    onAutoStop: onAutoStop
   };
 })();

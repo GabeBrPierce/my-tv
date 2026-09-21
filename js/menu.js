@@ -67,6 +67,7 @@ var Menu = (function () {
     els.overlay = $("menu-overlay");
     els.menuList = $("menu-list");
     els.browseView = $("browse-view");
+    els.browseFilter = $("browse-filter");
     els.browseHeader = $("browse-header");
     els.browseRows = $("browse-rows");
     els.favoritesView = $("favorites-view");
@@ -79,6 +80,12 @@ var Menu = (function () {
     els.toast = $("toast");
 
     els.searchInput.addEventListener("input", runSearch);
+    els.browseFilter.addEventListener("input", filterBrowseChannels);
+
+    Recorder.onAutoStop(function (result) {
+      showToast(downloadRecording(result) ? "Recording auto-saved (20 min limit)" : "Recording auto-stopped");
+      updateRecordMenuLabel();
+    });
 
     renderMenuList();
   }
@@ -103,10 +110,11 @@ var Menu = (function () {
     els.favoritesView.classList.add("hidden");
     els.searchView.classList.add("hidden");
     els.settingsView.classList.add("hidden");
-    // Explicitly drop focus so it never lingers on the (now-hidden) search
-    // input into another view — the same class of bug as the bg-playback
+    // Explicitly drop focus so it never lingers on a (now-hidden) input
+    // into another view — the same class of bug as the bg-playback
     // popup's buttons capturing later D-pad input (see index.html).
     els.searchInput.blur();
+    els.browseFilter.blur();
   }
 
   function open() {
@@ -175,21 +183,22 @@ var Menu = (function () {
     close();
   }
 
+  function downloadRecording(result) {
+    if (!result) return false;
+    var a = document.createElement("a");
+    a.href = result.url;
+    a.download = (result.channel.name || "recording").replace(/[^a-z0-9]+/gi, "_") + ".webm";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return true;
+  }
+
   function toggleRecording() {
     var videoEl = host.getVideoElement();
     if (Recorder.isRecording()) {
       Recorder.stopAndSave().then(function (result) {
-        if (result) {
-          var a = document.createElement("a");
-          a.href = result.url;
-          a.download = (result.channel.name || "recording").replace(/[^a-z0-9]+/gi, "_") + ".webm";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          showToast("Recording saved");
-        } else {
-          showToast("Nothing was recorded");
-        }
+        showToast(downloadRecording(result) ? "Recording saved" : "Nothing was recorded");
         updateRecordMenuLabel();
       });
     } else {
@@ -211,6 +220,7 @@ var Menu = (function () {
     state = "browse";
     hideAllViews();
     els.browseView.classList.remove("hidden");
+    els.browseFilter.value = "";
     browseChannels = Channels.getVisibleChannels();
     var current = host.getCurrentChannel();
     browseIndex = 0;
@@ -218,6 +228,22 @@ var Menu = (function () {
       var idx = browseChannels.findIndex(function (ch) { return ch.id === current.id; });
       if (idx !== -1) browseIndex = idx;
     }
+    browseWindowStart = 0;
+    browseColCursor = 0;
+    renderBrowse();
+  }
+
+  /** Type-to-filter: any printable key pressed while browsing (see
+   * handleKey) redirects focus here and lets the native default action
+   * insert the character, same as Search — we just re-derive
+   * browseChannels from the full list on every keystroke. */
+  function filterBrowseChannels() {
+    var q = els.browseFilter.value.trim().toLowerCase();
+    var all = Channels.getVisibleChannels();
+    browseChannels = q.length === 0
+      ? all
+      : all.filter(function (ch) { return ch.name && ch.name.toLowerCase().indexOf(q) !== -1; });
+    browseIndex = 0;
     browseWindowStart = 0;
     browseColCursor = 0;
     renderBrowse();
@@ -243,7 +269,7 @@ var Menu = (function () {
   function renderBrowse() {
     if (browseChannels.length === 0) {
       els.browseHeader.innerHTML = "";
-      els.browseRows.innerHTML = "No channels";
+      els.browseRows.innerHTML = els.browseFilter.value.trim() ? "No matching channels" : "No channels";
       return;
     }
 
@@ -532,12 +558,16 @@ var Menu = (function () {
     }
 
     if (state === "browse") {
+      // Left/Right always page through programs, never move a text
+      // cursor — so grid navigation stays available even mid-filter.
+      // Backspace edits the filter natively (like Search) rather than
+      // backing out; SoftLeft is the one way back, consistently.
       if (key === "ArrowUp") browseMoveRow(-1);
       else if (key === "ArrowDown") browseMoveRow(1);
       else if (key === "ArrowLeft") browseMoveToAdjacentProgram(-1);
       else if (key === "ArrowRight") browseMoveToAdjacentProgram(1);
       else if (key === "Enter") browseActivate();
-      else if (key === "Backspace") backToMenu();
+      else if (key.length === 1) els.browseFilter.focus(); // redirect typing into the filter
       return true;
     }
 
