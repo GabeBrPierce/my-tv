@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My TV</title>
+  <!-- settings.js runs before the stylesheet so the saved theme is set on
+       <html data-theme> before first paint (avoids a flash of the wrong theme). -->
+  <script src="js/settings.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="ad-banner" class="hidden">
+      <span id="ad-banner-text"></span>
+    </div>
+
+    <video id="player" autoplay playsinline></video>
+
+    <div id="banner" class="hidden">
+      <img id="banner-logo" src="" alt="" />
+      <div class="banner-text">
+        <div id="banner-name">Channel Name</div>
+        <div id="banner-program">Loading program info&hellip;</div>
+      </div>
+      <div id="banner-number"></div>
+    </div>
+
+    <div id="channel-entry" class="hidden">
+      <span id="channel-entry-value"></span>
+    </div>
+
+    <div id="loading" class="hidden">Loading&hellip;</div>
+    <div id="error" class="hidden"></div>
+
+    <!-- SoftLeft menu -->
+    <div id="menu-overlay" class="view hidden">
+      <div class="view-title">Menu</div>
+      <ul id="menu-list"></ul>
+    </div>
+
+    <!-- Browse Channels: EPG-style grid (placeholder program data — see schedule.js) -->
+    <div id="browse-view" class="view hidden">
+      <div class="view-title">Browse Channels</div>
+      <div id="browse-header" class="browse-header"></div>
+      <div id="browse-rows"></div>
+      <div class="view-hint">Up/Down: channel &middot; Left/Right: time &middot; SoftLeft: menu</div>
+    </div>
+
+    <div id="favorites-view" class="view hidden">
+      <div class="view-title">Favorite Channels</div>
+      <ul id="favorites-list"></ul>
+      <div class="view-hint">SoftLeft: menu</div>
+    </div>
+
+    <div id="search-view" class="view hidden">
+      <div class="view-title">Search</div>
+      <div id="search-query" class="search-query"></div>
+      <ul id="search-results"></ul>
+      <div class="view-hint">Numeric keys: multi-tap text &middot; SoftLeft: menu</div>
+    </div>
+
+    <div id="settings-view" class="view hidden">
+      <div class="view-title">Settings</div>
+      <ul id="settings-list"></ul>
+      <div class="view-hint">Enter: toggle &middot; SoftLeft: menu</div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+
+    <!-- Fullscreen ad, shown every 10 minutes while in rotated/immersive mode -->
+    <div id="ad-fullscreen" class="hidden">
+      <span id="ad-fullscreen-text"></span>
+    </div>
+
+    <!-- Shown after returning to the app if it was hidden while playing -->
+    <div id="bg-playback-popup" class="hidden">
+      <p>My TV can keep playing audio when you close the app or lock your
+        phone, like a podcast player.</p>
+      <div class="popup-actions">
+        <button id="bg-playback-enable-btn" type="button">Enable Background Playback</button>
+        <button id="bg-playback-close-btn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- hls.js for HLS playback where native HLS isn't supported -->
+  <script src="js/vendor/hls.min.js"></script>
+  <script src="js/channels.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/buffer.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/recorder.js"></script>
+  <script src="js/ads.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

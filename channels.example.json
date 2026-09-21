@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-14T00:00:00Z",
+  "channels": [
+    {
+      "id": "example-news-1",
+      "name": "Example News Network",
+      "streamUrl": "https://example.com/streams/news1/playlist.m3u8",
+      "logoUrl": "https://example.com/logos/news1.png",
+      "category": "news",
+      "language": "en",
+      "hasSubtitles": false,
+      "epgSource": null,
+      "enabled": true
+    },
+    {
+      "id": "example-drama-es",
+      "name": "Ejemplo Drama TV",
+      "streamUrl": "https://example.com/streams/drama-es/playlist.m3u8",
+      "logoUrl": "https://example.com/logos/drama-es.png",
+      "category": "drama",
+      "language": "es",
+      "hasSubtitles": true,
+      "epgSource": "https://example.com/epg/drama-es.xml",
+      "enabled": true
+    },
+    {
+      "id": "example-kids-1",
+      "name": "Example Kids",
+      "streamUrl": "https://example.com/streams/kids1/playlist.m3u8",
+      "logoUrl": "https://example.com/logos/kids1.png",
+      "category": "kids",
+      "language": "en",
+      "hasSubtitles": false,
+      "epgSource": "https://example.com/epg/kids1.xml",
+      "enabled": true
+    }
+  ]
+}

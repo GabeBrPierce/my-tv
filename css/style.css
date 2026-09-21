@@ -1,0 +1,377 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --fg-dim: #bbb;
+  --overlay-bg: rgba(0, 0, 0, 0.88);
+  --highlight-bg: #2a63c9;
+  --error: #ff6b6b;
+}
+
+:root[data-theme="light"] {
+  --bg: #e9e9e9;
+  --fg: #111;
+  --fg-dim: #444;
+  --overlay-bg: rgba(255, 255, 255, 0.94);
+  --highlight-bg: #2a63c9;
+  --error: #c0392b;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* Softright toggles this: rotates the whole app 90deg to fill a screen
+   whose native orientation is the other way, edge to edge. */
+#app.rotated {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 100vh;
+  height: 100vw;
+  margin-top: calc(-50vw);
+  margin-left: calc(-50vh);
+  transform: rotate(90deg);
+  transform-origin: center center;
+}
+
+/* Ad banner strip above the player — pushes the video down via flex,
+   rather than overlaying it. Hidden entirely in rotated/immersive mode. */
+#ad-banner {
+  flex: 0 0 auto;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+#player {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  object-fit: contain;
+  background: #000;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Channel banner, shown briefly on channel change */
+#banner {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  z-index: 5;
+}
+
+#banner-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  background: #222;
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+#banner-name {
+  font-size: 16px;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#banner-program {
+  font-size: 12px;
+  color: #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#banner-number {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* Numeric channel-entry overlay */
+#channel-entry {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 22px;
+  font-weight: bold;
+  z-index: 5;
+}
+
+#loading,
+#error {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--fg);
+  z-index: 5;
+}
+
+#error {
+  color: var(--error);
+}
+
+/* --- SoftLeft menu + views ------------------------------------------ */
+
+.view {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-bg);
+  color: var(--fg);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+
+.view-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  flex: 0 0 auto;
+}
+
+.view-hint {
+  margin-top: auto;
+  font-size: 10px;
+  color: var(--fg-dim);
+  padding-top: 6px;
+  flex: 0 0 auto;
+}
+
+#menu-list, #favorites-list, #search-results, #settings-list {
+  list-style: none;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+#menu-list li, #favorites-list li, #search-results li, #settings-list li {
+  padding: 6px 8px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.highlighted {
+  background: var(--highlight-bg);
+  color: #fff;
+}
+
+.empty-message {
+  color: var(--fg-dim);
+  font-style: italic;
+}
+
+.unavailable {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Browse Channels: a real grid — a fixed name column plus BROWSE_COLS
+   (see menu.js) 15-minute time columns, like a classic TV guide. */
+.browse-header {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--fg-dim);
+  margin-bottom: 4px;
+  flex: 0 0 auto;
+}
+
+.browse-header-spacer {
+  visibility: hidden;
+}
+
+/* Red "now" marker — positioned by menu.js via inline `left`. */
+.browse-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e33;
+  box-shadow: 0 0 3px rgba(238, 51, 51, 0.8);
+  pointer-events: none;
+}
+
+.browse-col-time {
+  text-align: center;
+}
+
+#browse-rows {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.browse-row {
+  display: flex;
+  gap: 2px;
+  padding: 3px 0;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+.browse-row.current-row {
+  background: rgba(128, 128, 128, 0.15);
+}
+
+.browse-name-cell {
+  flex: 0 0 34%;
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browse-cell {
+  flex: 1 1 0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  color: var(--fg-dim);
+}
+
+.browse-cell.now-airing {
+  color: var(--fg);
+  font-weight: bold;
+}
+
+.browse-cell.highlighted {
+  background: var(--highlight-bg);
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Search */
+.search-query {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 6px 8px;
+  background: rgba(128, 128, 128, 0.18);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  min-height: 1.4em;
+  flex: 0 0 auto;
+}
+
+/* Toast */
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: 36px;
+  transform: translateX(-50%);
+  max-width: 90%;
+  background: var(--overlay-bg);
+  color: var(--fg);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  z-index: 30;
+}
+
+/* Fullscreen ad — every 10 minutes in rotated/immersive mode */
+#ad-fullscreen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+  padding: 0 20px;
+  z-index: 25;
+}
+
+/* Background-playback discovery popup */
+#bg-playback-popup {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: 8%;
+  background: var(--overlay-bg);
+  color: var(--fg);
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 30;
+}
+
+#bg-playback-popup p {
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.popup-actions button {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 11px;
+  border: 1px solid var(--fg-dim);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.popup-actions button.focused {
+  background: var(--highlight-bg);
+  color: #fff;
+  border-color: var(--highlight-bg);
+}
