@@ -35,6 +35,57 @@ var Channels = (function () {
     });
   }
 
+  var UNCATEGORIZED = "Other";
+
+  /** channels.json's `category` is a comma-separated list ("news,business");
+   * the first entry is treated as the channel's primary category. */
+  function getCategory(ch) {
+    if (ch._cat) return ch._cat;
+    var raw = (ch.category || "").split(",")[0].trim();
+    ch._cat = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : UNCATEGORIZED;
+    return ch._cat;
+  }
+
+  /** Category (A-Z, "Other" last), then name. Sort keys are precomputed
+   * once so the comparator is just string compares — cheap on slow
+   * hardware. Numbers are untouched, so keypad entry stays stable. */
+  function sortByCategoryThenName(list) {
+    list.forEach(function (ch) {
+      ch._sortCat = getCategory(ch) === UNCATEGORIZED ? "￿" : ch._cat.toLowerCase();
+      ch._sortName = (ch.name || "").toLowerCase();
+    });
+    list.sort(function (a, b) {
+      if (a._sortCat !== b._sortCat) return a._sortCat < b._sortCat ? -1 : 1;
+      if (a._sortName !== b._sortName) return a._sortName < b._sortName ? -1 : 1;
+      return a.number - b.number;
+    });
+  }
+
+  /** Contiguous category groups of an already-sorted list. */
+  function getCategories(list) {
+    var groups = [];
+    list.forEach(function (ch, i) {
+      var label = getCategory(ch);
+      var last = groups[groups.length - 1];
+      if (last && last.label === label) last.count++;
+      else groups.push({ label: label, startIndex: i, count: 1 });
+    });
+    return groups;
+  }
+
+  /** Index of the first channel of the next (dir > 0) or previous
+   * (dir < 0) category in a sorted list, wrapping at the ends. */
+  function jumpCategoryIndex(list, index, dir) {
+    if (list.length === 0) return index;
+    var groups = getCategories(list);
+    var g = 0;
+    for (var i = 0; i < groups.length; i++) {
+      if (index >= groups[i].startIndex) g = i;
+    }
+    g = (g + (dir > 0 ? 1 : -1) + groups.length) % groups.length;
+    return groups[g].startIndex;
+  }
+
   function loadCache() {
     try {
       var raw = localStorage.getItem(CACHE_KEY);
@@ -119,6 +170,7 @@ var Channels = (function () {
           return ch.enabled !== false;
         });
         visibleChannels = applyFilters(allChannels, options);
+        sortByCategoryThenName(visibleChannels);
         resolve({ error: null, channels: visibleChannels });
       }
 
@@ -162,6 +214,9 @@ var Channels = (function () {
     getVisibleChannels: getVisibleChannels,
     getById: getById,
     getAnyById: getAnyById,
-    getByNumber: getByNumber
+    getByNumber: getByNumber,
+    getCategory: getCategory,
+    getCategories: getCategories,
+    jumpCategoryIndex: jumpCategoryIndex
   };
 })();

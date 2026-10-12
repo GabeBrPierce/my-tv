@@ -5,6 +5,8 @@
  * system, rotation, and background playback. Implements:
  *  - up/down cycles channels, wrapping at the ends; left/right seeks
  *    within the current stream's DVR buffer (if it has one)
+ *  - channels are ordered by category, then name; `#` / `*` jump to the
+ *    next / previous category (numbers stay stable regardless of order)
  *  - numeric keypad entry jumps straight to a channel (by its stable
  *    `number`, not array position — see channels.js)
  *  - banner shows briefly on every channel change; a persistent
@@ -12,21 +14,27 @@
  *  - last-watched channel is remembered across launches
  *  - broken streams auto-skip to the next channel
  *  - SoftLeft ("[" for desktop testing) opens the menu (Browse Channels /
- *    Favorites / Record / Search / Settings)
+ *    Favorites / Search / Settings)
  *  - SoftRight ("]") toggles a rotated, immersive full-screen mode: hides
  *    the ad banner, shows a fullscreen ad every 10 minutes instead
+ *  - a softkey legend at the bottom fades out a few seconds after the
+ *    last key press, and reappears on the next one
  *  - background playback (off by default) + the "you can enable this"
  *    popup when returning to the app after it was hidden while playing
+ *  - Backspace ("Back") never exits the app: it deletes a character while
+ *    a text input is focused, or backs out to the previous view otherwise
  */
 
 (function () {
   var LAST_WATCHED_KEY = "mytv.lastWatchedChannelId";
   var BANNER_DISMISS_MS = 4000;
   var CHANNEL_ENTRY_TIMEOUT_MS = 2000;
+  var SOFTKEY_BAR_DISMISS_MS = 4000;
 
   var channels = [];
   var currentIndex = 0;
   var bannerTimer = null;
+  var softkeyBarTimer = null;
   var rotated = false;
 
   var channelEntryBuffer = "";
@@ -40,6 +48,8 @@
   var channelTitleEl = document.getElementById("channel-title");
   var channelEntryEl = document.getElementById("channel-entry");
   var channelEntryValueEl = document.getElementById("channel-entry-value");
+  var softkeyBarEl = document.getElementById("softkey-bar");
+  var softkeyRightEl = document.getElementById("softkey-right");
   var loadingEl = document.getElementById("loading");
   var errorEl = document.getElementById("error");
   var appEl = document.getElementById("app");
@@ -65,7 +75,7 @@
   }
 
   function updateChannelTitle(channel) {
-    channelTitleEl.textContent = channel.number + ". " + channel.name;
+    channelTitleEl.textContent = channel.number + ". " + channel.name + " · " + Channels.getCategory(channel);
     channelTitleEl.classList.remove("hidden");
   }
 
@@ -84,6 +94,16 @@
     }, BANNER_DISMISS_MS);
   }
 
+  /** Shows the SoftLeft/SoftRight legend and (re)starts its fade-out timer.
+   * Called on every key press so any activity keeps it up a while longer. */
+  function showSoftkeyBar() {
+    softkeyBarEl.classList.remove("faded");
+    clearTimeout(softkeyBarTimer);
+    softkeyBarTimer = setTimeout(function () {
+      softkeyBarEl.classList.add("faded");
+    }, SOFTKEY_BAR_DISMISS_MS);
+  }
+
   function tuneToIndex(index, opts) {
     opts = opts || {};
     if (channels.length === 0) return;
@@ -92,17 +112,8 @@
     currentIndex = ((index % channels.length) + channels.length) % channels.length;
     var channel = channels[currentIndex];
 
-    if (Recorder.isRecording()) {
-      var recChannel = Recorder.getRecordingChannel();
-      if (recChannel && recChannel.id !== channel.id) {
-        Recorder.cancel();
-        Menu.showToast("Recording stopped (channel changed)");
-      }
-    }
-
     hideError();
     Player.play(channel.streamUrl);
-    RewindBuffer.start(Player.getVideoElement(), channel.id);
     updateChannelTitle(channel);
 
     if (!opts.silent) {
@@ -133,6 +144,14 @@
     tuneToIndex(currentIndex - 1);
   }
 
+  /** `#` / `*`: jump to the first channel of the next / previous category. */
+  function jumpCategory(direction) {
+    if (channels.length === 0) return;
+    lastDirection = direction;
+    tuneToIndex(Channels.jumpCategoryIndex(channels, currentIndex, direction));
+    Menu.showToast(Channels.getCategory(channels[currentIndex]));
+  }
+
   /** Used only by the dead-stream auto-skip: continues in whichever
    * direction the user was last browsing, without resetting it. */
   function autoSkip() {
@@ -143,11 +162,9 @@
 
   /**
    * Rewind/fast-forward within the stream's own seekable (DVR) buffer.
-   * This is independent of the cross-origin-blocked captureStream() rewind
-   * buffer (see buffer.js) — `currentTime` seeking isn't restricted by
-   * CORS, only pixel/audio *extraction* is — so it works whenever the
-   * stream itself exposes a seekable range (many live HLS streams keep a
-   * sliding window of recent segments; pure live-edge-only streams won't
+   * `currentTime` seeking isn't restricted by CORS, so it works whenever
+   * the stream itself exposes a seekable range (many live HLS streams keep
+   * a sliding window of recent segments; pure live-edge-only streams won't
    * have one, and this becomes a no-op with a toast).
    */
   function seek(deltaSeconds) {
@@ -207,6 +224,7 @@
   function toggleRotation() {
     rotated = !rotated;
     appEl.classList.toggle("rotated", rotated);
+    softkeyRightEl.textContent = rotated ? "Exit Full Screen" : "Full Screen";
     if (rotated) {
       Ads.hideBanner();
       Ads.startFullscreenSchedule();
@@ -275,6 +293,19 @@
   function onKeyDown(event) {
     var key = event.key;
 
+    // Back must never leave the app. A hardware Backspace with nothing
+    // handling it falls through to the platform's default "navigate
+    // back" action, which — with no browser history here — can close
+    // the app outright. Text inputs are the one exception: there we
+    // want the native delete-a-character behavior to fire normally.
+    if (key === "Backspace") {
+      var active = document.activeElement;
+      var isTextInput = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+      if (!isTextInput) event.preventDefault();
+    }
+
+    showSoftkeyBar();
+
     if (bgPopupOpen) {
       handleBgPopupKey(key);
       return;
@@ -300,6 +331,10 @@
       seek(SEEK_STEP_SECONDS);
     } else if (key === "ArrowLeft") {
       seek(-SEEK_STEP_SECONDS);
+    } else if (key === "#") {
+      jumpCategory(1);
+    } else if (key === "*") {
+      jumpCategory(-1);
     } else if (key >= "0" && key <= "9") {
       handleDigit(key);
     } else if (key === "Enter") {
@@ -339,8 +374,7 @@
 
     Menu.init({
       getCurrentChannel: getCurrentChannel,
-      tuneToChannel: tuneToChannel,
-      getVideoElement: Player.getVideoElement
+      tuneToChannel: tuneToChannel
     });
 
     Player.onError(function () {
@@ -362,6 +396,7 @@
       var startIndex = restoreLastWatchedIndex();
       tuneToIndex(startIndex);
       Ads.showBanner();
+      showSoftkeyBar();
     });
 
     document.addEventListener("keydown", onKeyDown);

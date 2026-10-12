@@ -10,7 +10,8 @@ finished app.
 - `manifest.webmanifest` — KaiOS app manifest (privileged app, landscape,
   fullscreen, softkey navigation enabled), now pointing at real icon files.
 - `index.html` — single screen: video element, channel banner, numeric
-  channel-entry overlay, loading/error states.
+  channel-entry overlay, a fading SoftLeft/SoftRight softkey legend,
+  loading/error states.
 - `css/style.css` — layout for the above.
 - `js/channels.js` — fetches `channels.json` from GitHub, caches it locally,
   applies the language/subtitles filter. **You still need to set
@@ -27,15 +28,6 @@ finished app.
 - `js/vendor/hls.min.js` — hls.js, pinned at v1.7.3 (installed via
   `npm install hls.js`, verified against npm's published release). Loaded
   as a fallback where native HLS isn't available.
-- `js/buffer.js` — rolling ~5-minute rewind buffer via
-  `captureStream()` + `MediaRecorder`. The original timing bug (calling
-  `captureStream()` before the video had any decoded frame — threw "no
-  audio or video tracks available" on literally every channel tune) is
-  fixed: it now waits for `loadeddata`. Testing also confirmed a *second*,
-  more fundamental issue: `captureStream()` throws a `SecurityError` for
-  cross-origin media without CORS headers, which is almost all of these
-  public IPTV streams — see the feasibility note at the top of the file.
-  Still **unverified on real KaiOS 3 hardware** on top of that.
 - `js/settings.js` — localStorage-backed prefs: theme (dark/light),
   background-playback opt-in, favorite channel ids. Loaded first so the
   saved theme applies before first paint.
@@ -44,19 +36,12 @@ finished app.
   parsing is still phase two — see `free-resources.md` section 3). This
   generates a deterministic, obviously-fake schedule (titles like "News
   Block #4") so Browse Channels has real start/end times to navigate.
-- `js/notifications.js` — schedules the two program-reminder notifications
-  (5 minutes prior, at start) via the KaiOS/B2G Alarm API
-  (`navigator.mozAlarms`) when available, falling back to an in-page
-  timer + `Notification` (only fires while the tab/app stays open) in a
-  normal browser. Verify `navigator.mozAlarms` on-device.
-- `js/recorder.js` — on-demand recording for the menu's "Record Program."
-  Same `captureStream()` mechanism and same cross-origin limitation as
-  `buffer.js` — confirmed by testing, not just a theoretical caveat.
-  Unlike the rewind buffer it keeps everything from start to stop rather
-  than evicting old chunks, so it auto-stops and saves past 20 minutes —
-  the same unbounded-memory-growth risk as the hls.js back-buffer above,
-  just for a feature that (per the cross-origin limitation) rarely
-  actually gets this far in practice.
+- `js/notifications.js` — schedules two tune-in reminder notifications for
+  a future program you pick in Browse Channels (5 minutes prior, at
+  start) via the KaiOS/B2G Alarm API (`navigator.mozAlarms`) when
+  available, falling back to an in-page timer + `Notification` (only
+  fires while the tab/app stays open) in a normal browser. Verify
+  `navigator.mozAlarms` on-device.
 - `js/ads.js` — banner ad strip (rotates every 30s) and a fullscreen ad
   (every 10 minutes in rotated/immersive mode). **Placeholder creatives**
   — there's no real ad network wired up (that needs an actual ad SDK and
@@ -118,16 +103,23 @@ finished app.
   see `free-resources.md` section 3.
 - **A real ad network.** `js/ads.js` rotates placeholder creatives on a
   real schedule/layout; there's no ad SDK or account behind it.
-- **Recording/rewind against most real streams.** Confirmed by testing:
-  `captureStream()` throws for cross-origin media without CORS headers,
-  which is almost all of these public IPTV streams. See `js/buffer.js`'s
-  feasibility note.
 - **Guaranteed background audio.** `js/app.js` leaves the `<video>`
   playing (rather than pausing it) when background playback is enabled
   and the app is hidden, and the manifest requests
   `audio-channel-content`, but whether KaiOS actually keeps decoding/
   outputting audio for a hidden privileged app is unverified on real
-  hardware — same category as the rewind buffer.
+  hardware.
+- Recording/DVR. There was an on-demand recording feature
+  (`js/recorder.js`) and a rolling rewind buffer (`js/buffer.js`), both
+  built on `captureStream()` + `MediaRecorder`. Both are gone: testing
+  confirmed `captureStream()` throws a `SecurityError` for cross-origin
+  media without CORS headers — true of almost all of these public IPTV
+  streams — so neither worked against real channels, and the rewind
+  buffer was running a live `MediaRecorder` re-encode on every single
+  channel tune for a buffer nothing ever read from (a real CPU/memory
+  cost on feature-phone hardware, for a feature that didn't work). If you
+  want DVR-style rewind back, look at a server-side proxy that re-serves
+  streams with CORS headers instead.
 - Parental channel hiding.
 - Any KaiOS packaging/signing steps for KaiStore submission.
 
@@ -149,28 +141,36 @@ finished app.
 3. `js/vendor/hls.min.js` is already in place (v1.7.3).
 4. Icons are already in place; swap them out if you want a different look.
 5. Test in the KaiOS simulator (via the KaiOS/Firefox OS developer tools) or
-   on an actual device before assuming any of the playback/buffer code works
-   as written — especially the rewind buffer, recording, background audio,
-   and the Alarm API (all flagged above as unverified on real hardware).
+   on an actual device before assuming any of the playback code works as
+   written — especially background audio and the Alarm API (flagged above
+   as unverified on real hardware).
 
 ## Controls
 
 - **Up / Down** (D-pad): cycle channels, wraps at the ends.
 - **Left / Right** (D-pad): rewind/fast-forward 15 seconds within the
-  current stream's own seekable (DVR) buffer, if it has one. This is
-  separate from — and unaffected by — the cross-origin captureStream()
-  limitation on the rewind-buffer/recording features (see `js/buffer.js`):
-  `currentTime` seeking isn't blocked by CORS, only pixel/audio
-  *extraction* is. Streams with no DVR window (live-edge only) just show
-  a toast rather than doing nothing silently.
+  current stream's own seekable (DVR) buffer, if it has one. `currentTime`
+  seeking isn't blocked by CORS, so this works independently of streams'
+  cross-origin restrictions. Streams with no DVR window (live-edge only)
+  just show a toast rather than doing nothing silently.
 - **0-9**: jump straight to a channel number (numeric entry, 2s to commit).
+  Channels are ordered by category (A-Z, "Other" last), then name — but
+  each channel's number is stable and independent of that order. A
+  channel's category is the first entry of its `category` field in
+  channels.json. The persistent title shows it (`12. CNN · News`).
+- **#** / **\***: jump to the first channel of the next / previous
+  category (also works inside Browse Channels).
 - **SoftLeft** (`[` for desktop testing): open the menu — Browse Channels,
-  Add/View Favorite Channels, Record Program, Search, Settings. SoftLeft
-  again from any sub-view goes back to the menu; from the menu itself,
-  closes it.
+  Jump to Category, Add/View Favorite Channels, Search, Settings. SoftLeft again from any
+  sub-view goes back to the menu; from the menu itself, closes it.
 - **SoftRight** (`]`): toggle a rotated, immersive full-screen mode — hides
   the ad banner and shows a fullscreen ad every 10 minutes instead of the
   banner.
+- **Backspace** ("Back"): never exits the app. Deletes a character while a
+  text input (Search / Browse filter) is focused; otherwise backs out to
+  the previous view, same as SoftLeft.
+- A softkey legend at the bottom of the screen (`Menu` / `Full Screen`)
+  shows on any key press and fades out a few seconds after the last one.
 - Inside Browse Channels: a real grid. The time header always advances in
   fixed 15-minute steps, but each row's program blocks are sized by that
   program's actual duration (a 15-minute show gets a third of the row; a

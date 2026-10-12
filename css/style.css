@@ -85,7 +85,7 @@ html, body {
 #banner {
   position: absolute;
   left: 0;
-  bottom: 0;
+  bottom: 22px; /* clears #softkey-bar sitting at the very bottom */
   right: 0;
   display: flex;
   align-items: center;
@@ -127,6 +127,32 @@ html, body {
 #banner-number {
   font-size: 20px;
   font-weight: bold;
+}
+
+/* Softkey legend — SoftLeft/SoftRight hints, always at the very bottom.
+   Fades out (not display:none, so it can fade back in smoothly) a few
+   seconds after the last key press; see app.js's showSoftkeyBar(). */
+#softkey-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  z-index: 5;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+#softkey-bar.faded {
+  opacity: 0;
 }
 
 /* Numeric channel-entry overlay */
@@ -206,13 +232,19 @@ html, body {
   flex: 0 0 auto;
 }
 
-#menu-list, #favorites-list, #search-results, #settings-list {
+.view-subtitle {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--fg-dim);
+}
+
+#menu-list, #favorites-list, #search-results, #settings-list, #category-list {
   list-style: none;
   flex: 1 1 auto;
   overflow: hidden;
 }
 
-#menu-list li, #favorites-list li, #search-results li, #settings-list li {
+#menu-list li, #favorites-list li, #search-results li, #settings-list li, #category-list li {
   padding: 6px 8px;
   font-size: 14px;
   border-radius: 4px;

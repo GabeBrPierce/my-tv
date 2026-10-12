@@ -5,10 +5,14 @@
  * grid against schedule.js's placeholder program data), Add/View
  * Favorites, Search, and Settings (dark mode / background playback).
  *
- * State machine: "closed" -> "menu" -> one of "browse" | "favorites" |
- * "search" | "settings". SoftLeft from any sub-view goes back to "menu"
+ * State machine: "closed" -> "menu" -> one of "browse" | "categories" |
+ * "favorites" | "search" | "settings". SoftLeft from any sub-view goes back to "menu"
  * (per the explicit Browse Channels spec, applied consistently to the
- * others); SoftLeft from "menu" closes back to "closed".
+ * others); SoftLeft from "menu" closes back to "closed". Backspace does
+ * the same, except in "browse"/"search" where it first deletes a
+ * character from that view's filter/query input — it only backs out once
+ * that input is already empty (see handleKey), matching "Back deletes
+ * text, or goes back" everywhere else in the app.
  *
  * Search uses a real <input> rather than hand-rolled multi-tap key
  * handling — KaiOS's own text-input IME already does multi-tap, cursor
@@ -25,8 +29,8 @@
 var Menu = (function () {
   var MENU_ITEMS = [
     { action: "browse", label: "Browse Channels" },
+    { action: "categories", label: "Jump to Category" },
     { action: "favorite-toggle", label: "Add to Favorite Channels" },
-    { action: "record", label: "Record Program" },
     { action: "favorites", label: "View Favorite Channels" },
     { action: "search", label: "Search" },
     { action: "settings", label: "Settings" }
@@ -49,6 +53,10 @@ var Menu = (function () {
   var browseWindowStart = 0; // slot offset of the leftmost visible column
   var browseColCursor = 0;   // 0..BROWSE_COLS-1, which visible column is highlighted
 
+  var categoryGroups = [];
+  var categoryIndex = 0;
+  var CATEGORY_VISIBLE_ROWS = 6;
+
   var favoritesChannels = [];
   var favoritesIndex = 0;
 
@@ -70,6 +78,9 @@ var Menu = (function () {
     els.browseFilter = $("browse-filter");
     els.browseHeader = $("browse-header");
     els.browseRows = $("browse-rows");
+    els.browseCategory = $("browse-category");
+    els.categoryView = $("category-view");
+    els.categoryList = $("category-list");
     els.favoritesView = $("favorites-view");
     els.favoritesList = $("favorites-list");
     els.searchView = $("search-view");
@@ -81,11 +92,6 @@ var Menu = (function () {
 
     els.searchInput.addEventListener("input", runSearch);
     els.browseFilter.addEventListener("input", filterBrowseChannels);
-
-    Recorder.onAutoStop(function (result) {
-      showToast(downloadRecording(result) ? "Recording auto-saved (20 min limit)" : "Recording auto-stopped");
-      updateRecordMenuLabel();
-    });
 
     renderMenuList();
   }
@@ -107,6 +113,7 @@ var Menu = (function () {
   function hideAllViews() {
     els.overlay.classList.add("hidden");
     els.browseView.classList.add("hidden");
+    els.categoryView.classList.add("hidden");
     els.favoritesView.classList.add("hidden");
     els.searchView.classList.add("hidden");
     els.settingsView.classList.add("hidden");
@@ -157,11 +164,11 @@ var Menu = (function () {
       case "browse":
         openBrowse();
         break;
+      case "categories":
+        openCategories();
+        break;
       case "favorite-toggle":
         toggleCurrentFavorite();
-        break;
-      case "record":
-        toggleRecording();
         break;
       case "favorites":
         openFavorites();
@@ -183,35 +190,48 @@ var Menu = (function () {
     close();
   }
 
-  function downloadRecording(result) {
-    if (!result) return false;
-    var a = document.createElement("a");
-    a.href = result.url;
-    a.download = (result.channel.name || "recording").replace(/[^a-z0-9]+/gi, "_") + ".webm";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return true;
-  }
+  // --- Jump to Category -------------------------------------------------
 
-  function toggleRecording() {
-    var videoEl = host.getVideoElement();
-    if (Recorder.isRecording()) {
-      Recorder.stopAndSave().then(function (result) {
-        showToast(downloadRecording(result) ? "Recording saved" : "Nothing was recorded");
-        updateRecordMenuLabel();
-      });
-    } else {
-      var channel = host.getCurrentChannel();
-      var ok = channel && Recorder.start(videoEl, channel);
-      showToast(ok ? "Recording started" : "Couldn't record this stream (see console)");
-      updateRecordMenuLabel();
+  function openCategories() {
+    state = "categories";
+    hideAllViews();
+    els.categoryView.classList.remove("hidden");
+    categoryGroups = Channels.getCategories(Channels.getVisibleChannels());
+    categoryIndex = 0;
+    var current = host.getCurrentChannel();
+    if (current) {
+      var label = Channels.getCategory(current);
+      for (var i = 0; i < categoryGroups.length; i++) {
+        if (categoryGroups[i].label === label) { categoryIndex = i; break; }
+      }
     }
-    close();
+    renderCategories();
   }
 
-  function updateRecordMenuLabel() {
-    MENU_ITEMS[2].label = Recorder.isRecording() ? "Stop Recording" : "Record Program";
+  function renderCategories() {
+    els.categoryList.innerHTML = "";
+    var half = Math.floor(CATEGORY_VISIBLE_ROWS / 2);
+    var start = Math.max(0, Math.min(categoryIndex - half, categoryGroups.length - CATEGORY_VISIBLE_ROWS));
+    var end = Math.min(categoryGroups.length, start + CATEGORY_VISIBLE_ROWS);
+    for (var i = start; i < end; i++) {
+      var li = document.createElement("li");
+      li.textContent = categoryGroups[i].label + " (" + categoryGroups[i].count + ")";
+      if (i === categoryIndex) li.className = "highlighted";
+      els.categoryList.appendChild(li);
+    }
+  }
+
+  function categoriesMove(delta) {
+    if (categoryGroups.length === 0) return;
+    categoryIndex = Math.max(0, Math.min(categoryGroups.length - 1, categoryIndex + delta));
+    renderCategories();
+  }
+
+  function categoriesActivate() {
+    var group = categoryGroups[categoryIndex];
+    if (!group) return;
+    host.tuneToChannel(Channels.getVisibleChannels()[group.startIndex]);
+    close();
   }
 
   // --- Browse Channels (EPG grid) -------------------------------------
@@ -267,6 +287,10 @@ var Menu = (function () {
    * 1-hour one — rather than one independent cell per column.
    */
   function renderBrowse() {
+    els.browseCategory.textContent = browseChannels.length
+      ? "· " + Channels.getCategory(browseChannels[browseIndex])
+      : "";
+
     if (browseChannels.length === 0) {
       els.browseHeader.innerHTML = "";
       els.browseRows.innerHTML = els.browseFilter.value.trim() ? "No matching channels" : "No channels";
@@ -335,6 +359,12 @@ var Menu = (function () {
     }
   }
 
+  function browseJumpCategory(direction) {
+    if (browseChannels.length === 0) return;
+    browseIndex = Channels.jumpCategoryIndex(browseChannels, browseIndex, direction);
+    renderBrowse();
+  }
+
   function browseMoveRow(deltaRows) {
     browseIndex = Math.max(0, Math.min(browseChannels.length - 1, browseIndex + deltaRows));
     renderBrowse();
@@ -384,11 +414,11 @@ var Menu = (function () {
     if (!program) return;
 
     if (Schedule.isFuture(program)) {
-      Notifications.scheduleRecording(channel, program);
+      Notifications.scheduleReminder(channel, program);
       var when = formatTime(program.start);
       var note = Notifications.isRealSchedulingAvailable()
-        ? "Reminders set for " + when
-        : "Reminders set for " + when + " (this session only — see console)";
+        ? "Reminder set for " + when
+        : "Reminder set for " + when + " (this session only — see console)";
       showToast(note);
     } else {
       host.tuneToChannel(channel);
@@ -560,14 +590,27 @@ var Menu = (function () {
     if (state === "browse") {
       // Left/Right always page through programs, never move a text
       // cursor — so grid navigation stays available even mid-filter.
-      // Backspace edits the filter natively (like Search) rather than
-      // backing out; SoftLeft is the one way back, consistently.
+      // Backspace deletes filter text natively while there's text to
+      // delete (see onKeyDown's activeElement guard in app.js, which
+      // skips preventDefault for that); once the filter is already
+      // empty, Backspace is "Back" like everywhere else in the app.
       if (key === "ArrowUp") browseMoveRow(-1);
       else if (key === "ArrowDown") browseMoveRow(1);
       else if (key === "ArrowLeft") browseMoveToAdjacentProgram(-1);
       else if (key === "ArrowRight") browseMoveToAdjacentProgram(1);
       else if (key === "Enter") browseActivate();
+      else if (key === "Backspace") { if (els.browseFilter.value.length === 0) backToMenu(); }
+      else if (key === "#") browseJumpCategory(1);
+      else if (key === "*") browseJumpCategory(-1);
       else if (key.length === 1) els.browseFilter.focus(); // redirect typing into the filter
+      return true;
+    }
+
+    if (state === "categories") {
+      if (key === "ArrowUp") categoriesMove(-1);
+      else if (key === "ArrowDown") categoriesMove(1);
+      else if (key === "Enter") categoriesActivate();
+      else if (key === "Backspace") backToMenu();
       return true;
     }
 
@@ -586,9 +629,12 @@ var Menu = (function () {
       // return here. We just also intercept the results-list navigation
       // (not native input behavior) and make sure app.js's normal
       // channel/seek handling doesn't also fire while search is open.
+      // Once the query is already empty, Backspace goes back instead of
+      // being a no-op.
       if (key === "ArrowUp") searchMove(-1);
       else if (key === "ArrowDown") searchMove(1);
       else if (key === "Enter") searchActivate();
+      else if (key === "Backspace") { if (els.searchInput.value.length === 0) backToMenu(); }
       return true;
     }
 

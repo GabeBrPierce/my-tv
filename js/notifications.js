@@ -1,19 +1,19 @@
 /**
  * notifications.js
  *
- * Schedules the two "open the app to record" reminders for a future
- * program: 5 minutes before it starts, and at start time.
+ * Schedules two "a program you picked is starting soon" reminders for a
+ * future program: 5 minutes before it starts, and at start time. Purely a
+ * tune-in nudge — there's no recording feature to wire it to.
  *
  * FEASIBILITY NOTE: reminders that fire even while the app is closed need
  * the KaiOS/B2G Alarm API (`navigator.mozAlarms` + a `"alarm"` system
  * message handler), a privileged, KaiOS-only API not present in desktop
- * browsers — same category of unverified-on-real-hardware API as
- * buffer.js's captureStream/MediaRecorder use. When it's missing (e.g.
- * testing here), this falls back to an in-page setTimeout + Notification,
- * which only fires while this tab/app instance stays open. That's enough
- * to prove the scheduling and UI flow, not a substitute for the real
- * thing — verify `navigator.mozAlarms` on-device, and see manifest
- * `permissions.alarms`, added alongside this module.
+ * browsers. When it's missing (e.g. testing here), this falls back to an
+ * in-page setTimeout + Notification, which only fires while this tab/app
+ * instance stays open. That's enough to prove the scheduling and UI flow,
+ * not a substitute for the real thing — verify `navigator.mozAlarms`
+ * on-device, and see manifest `permissions.alarms`, added alongside this
+ * module.
  */
 
 var Notifications = (function () {
@@ -50,9 +50,9 @@ var Notifications = (function () {
   function notifyNow(channel, program, label) {
     if (supportsNotification && Notification.permission === "granted") {
       try {
-        new Notification("My TV recording reminder", {
-          body: channel.name + " — " + program.title + " starts " + label + ". Open My TV to record.",
-          tag: "mytv-record-" + channel.id + "-" + program.start
+        new Notification("My TV reminder", {
+          body: channel.name + " — " + program.title + " starts " + label + ". Open My TV to watch.",
+          tag: "mytv-reminder-" + channel.id + "-" + program.start
         });
         return;
       } catch (e) {
@@ -67,14 +67,14 @@ var Notifications = (function () {
    * future program. Returns false if the program isn't actually in the
    * future (nothing to schedule).
    */
-  function scheduleRecording(channel, program) {
+  function scheduleReminder(channel, program) {
     if (program.start <= Date.now()) return false;
 
     ensurePermission();
     var startDate = new Date(program.start);
     var reminderDate = new Date(program.start - 5 * 60 * 1000);
     var payload = {
-      type: "record-reminder",
+      type: "tune-in-reminder",
       channelId: channel.id,
       channelName: channel.name,
       programTitle: program.title,
@@ -107,7 +107,7 @@ var Notifications = (function () {
   if (navigator.mozSetMessageHandler) {
     navigator.mozSetMessageHandler("alarm", function (mozAlarm) {
       var data = mozAlarm.data || {};
-      if (data.type === "record-reminder") {
+      if (data.type === "tune-in-reminder") {
         notifyNow(
           { id: data.channelId, name: data.channelName },
           { title: data.programTitle, start: data.programStart },
@@ -120,6 +120,6 @@ var Notifications = (function () {
   return {
     isRealSchedulingAvailable: function () { return supportsAlarms; },
     ensurePermission: ensurePermission,
-    scheduleRecording: scheduleRecording
+    scheduleReminder: scheduleReminder
   };
 })();
