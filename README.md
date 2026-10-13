@@ -32,10 +32,16 @@ finished app.
   (~580 of ~1,960 enabled channels, incl. all of `jmp2.uk`/Pluto TV) play
   instead of failing under hls.js and getting auto-skipped. Probes at
   startup and only turns on where the response is really readable (it
-  would break playback elsewhere, e.g. desktop). A toast at launch says
-  "Cross-origin fetch: on/off" — a temporary diagnostic, since there's no
-  console on the phone. **Unverified on real KaiOS 3 hardware.** This
-  replaced an earlier `mozSystem` XHR shim (see git history).
+  would break playback elsewhere, e.g. desktop). KaiOS 3 only.
+- `js/system-xhr.js` — the fallback for everything else, incl. KaiOS 2.5:
+  wraps `XMLHttpRequest` so every request (hls.js's too) is a system XHR
+  (`mozSystem: true`, allowed by the same `systemXHR` permission), which
+  also skips CORS. Feature-detected; desktop is untouched. Used when the
+  fetch route isn't available.
+- A toast at launch (8s) says which route is active, e.g. `KaiOS 2.5.4 |
+  cross-origin: xhr`, or `cross-origin: off (fetch: <reason>)` — a
+  temporary diagnostic, since there's no console on the phone. Both
+  routes are **unverified on real hardware**.
 - `js/player.js` — loads a channel's stream into the `<video>` element,
   using native HLS where available and falling back to hls.js. Reports
   playback failures so the app can auto-skip. hls.js is configured with

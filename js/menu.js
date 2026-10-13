@@ -100,14 +100,14 @@ var Menu = (function () {
     return state !== "closed";
   }
 
-  function showToast(message) {
+  function showToast(message, durationMs) {
     if (!els.toast) return;
     els.toast.textContent = message;
     els.toast.classList.remove("hidden");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () {
       els.toast.classList.add("hidden");
-    }, 2500);
+    }, durationMs || 2500);
   }
 
   function hideAllViews() {

@@ -9,7 +9,8 @@
  * manifestLoadError and get auto-skipped. Native <video src> never needed
  * CORS.
  *
- * Everywhere else a no-cors fetch is opaque and unreadable, which would
+ * KaiOS 2.5 has no such fetch behavior (nor AbortController); system-xhr.js
+ * covers that case. Everywhere else a no-cors fetch is opaque and unreadable, which would
  * break playback — so this only turns on if a probe shows the platform
  * really returns a readable response. `ready` resolves once that's known
  * (app.js waits on it before the first tune); `hlsConfig()` is merged into
@@ -30,27 +31,40 @@ var SystemFetch = (function () {
   var DEFAULT_LOAD_TIMEOUT_MS = 30000;
 
   var active = false;
-
-  var canFetch = typeof fetch === "function" && typeof Headers === "function" &&
-    typeof AbortController !== "undefined";
+  var probeDone = false;
+  var reason = ""; // why the probe said no — shown in app.js's launch toast
 
   function runProbe() {
-    if (!canFetch) return Promise.resolve(false);
+    if (typeof fetch !== "function") { reason = "no fetch"; return Promise.resolve(false); }
+    if (typeof Headers !== "function") { reason = "no Headers"; return Promise.resolve(false); }
+    if (typeof AbortController === "undefined") { reason = "no AbortController"; return Promise.resolve(false); }
     try {
       return fetch(PROBE_URL, { method: "HEAD", mode: "no-cors" }).then(
-        function (response) { return response.type === "basic"; },
-        function () { return false; }
+        function (response) {
+          if (response.type === "basic") return true;
+          reason = "response " + response.type;
+          return false;
+        },
+        function (err) {
+          reason = "error " + ((err && (err.name || err.message)) || "?");
+          return false;
+        }
       );
     } catch (e) {
+      reason = "threw " + (e && e.name);
       return Promise.resolve(false);
     }
   }
 
   var timeout = new Promise(function (resolve) {
-    setTimeout(function () { resolve(false); }, PROBE_TIMEOUT_MS);
+    setTimeout(function () {
+      if (!probeDone) reason = "probe timeout";
+      resolve(false);
+    }, PROBE_TIMEOUT_MS);
   });
 
   var ready = Promise.race([runProbe(), timeout]).then(function (ok) {
+    probeDone = true;
     active = ok;
     return ok;
   });
@@ -178,6 +192,7 @@ var SystemFetch = (function () {
   return {
     ready: ready,
     isActive: function () { return active; },
+    getReason: function () { return reason; },
     hlsConfig: hlsConfig,
     createLoader: createLoader
   };

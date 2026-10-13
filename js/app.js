@@ -379,6 +379,15 @@
 
   // --- Startup -------------------------------------------------------------
 
+  /** e.g. "KaiOS 2.5.4 | cross-origin: xhr" or
+   * "KaiOS 3.0 | cross-origin: off (fetch: response opaque)". */
+  function crossOriginStatus() {
+    var ver = /KaiOS\/([\d.]+)/i.exec(navigator.userAgent);
+    var mode = SystemFetch.isActive() ? "fetch" : SystemXhr.isActive() ? "xhr" : "off";
+    return "KaiOS " + (ver ? ver[1] : "?") + " | cross-origin: " + mode +
+      (mode === "off" ? " (fetch: " + SystemFetch.getReason() + ")" : "");
+  }
+
   function restoreLastWatchedIndex() {
     var lastId = null;
     try {
@@ -426,8 +435,8 @@
       Ads.showBanner();
       showSoftkeyBar();
       // Temporary diagnostic: there's no console on the phone, so this is
-      // how to tell whether the no-cors fetch path is in effect.
-      Menu.showToast("Cross-origin fetch: " + (SystemFetch.isActive() ? "on" : "off"));
+      // how to tell which cross-origin path (if any) is in effect.
+      Menu.showToast(crossOriginStatus(), 8000);
     });
 
     var videoEl = Player.getVideoElement();
