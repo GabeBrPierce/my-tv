@@ -409,7 +409,10 @@
       autoSkip();
     });
 
-    Channels.fetchChannels().then(function (result) {
+    // SystemFetch.ready must settle before the first tune so the very first
+    // Player.play() already knows whether to use no-cors fetch.
+    Promise.all([Channels.fetchChannels(), SystemFetch.ready]).then(function (results) {
+      var result = results[0];
       showLoading(false);
       channels = result.channels;
 
@@ -422,6 +425,9 @@
       tuneToIndex(startIndex);
       Ads.showBanner();
       showSoftkeyBar();
+      // Temporary diagnostic: there's no console on the phone, so this is
+      // how to tell whether the no-cors fetch path is in effect.
+      Menu.showToast("Cross-origin fetch: " + (SystemFetch.isActive() ? "on" : "off"));
     });
 
     var videoEl = Player.getVideoElement();

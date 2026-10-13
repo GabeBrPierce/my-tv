@@ -34,7 +34,7 @@ var Player = (function () {
            count as that interaction in practice. */
       });
     } else if (window.Hls && window.Hls.isSupported()) {
-      hls = new window.Hls({
+      var hlsConfig = {
         // hls.js's default is to never evict already-played buffer
         // (backBufferLength: Infinity) — fine for a short clip, but on a
         // live channel left running for a long time (e.g. a news
@@ -43,7 +43,13 @@ var Player = (function () {
         // video stays buffered behind the current position; segments
         // older than that get evicted automatically.
         backBufferLength: 30
-      });
+      };
+      // Where supported (KaiOS 3), load via no-cors fetch so streams
+      // without CORS headers work — see system-fetch.js.
+      var extra = SystemFetch.hlsConfig();
+      for (var k in extra) hlsConfig[k] = extra[k];
+
+      hls = new window.Hls(hlsConfig);
       hls.loadSource(streamUrl);
       hls.attachMedia(videoEl);
       hls.on(window.Hls.Events.ERROR, function (event, data) {
