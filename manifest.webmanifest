@@ -24,7 +24,7 @@
     "origin": "my-tv-gabe",
     "permissions": {
       "systemXHR": {
-        "description": "Fetch the channel list from GitHub"
+        "description": "Fetch the channel list from GitHub and load video streams from servers that don't send CORS headers"
       },
       "alarm": {
         "description": "Schedule the two 'program starting soon' recording reminders (5 minutes prior and at start time) so they fire even if the app isn't open"

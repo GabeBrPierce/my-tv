@@ -23,6 +23,14 @@ finished app.
   after the list loads, so it also covers a stale cache.
   `tools/build_channels.py` has a matching filter (keep the two in sync);
   to block a channel, add its `id` to both.
+- `js/system-xhr.js` — wraps `XMLHttpRequest` so every request (including
+  hls.js's playlist/segment loads) is a KaiOS system XHR
+  (`mozSystem: true`, allowed by the manifest's `systemXHR` permission),
+  which skips CORS. Without it, streams whose servers send no CORS headers
+  (~580 of ~1,960 enabled channels, incl. all of `jmp2.uk`/Pluto TV) fail
+  under hls.js and get auto-skipped. Feature-detected, so desktop is left
+  untouched. **Unverified on real KaiOS 3 hardware** — if channels like
+  157 still skip on the phone, KaiOS 3 may not honor `mozSystem`.
 - `js/player.js` — loads a channel's stream into the `<video>` element,
   using native HLS where available and falling back to hls.js. Reports
   playback failures so the app can auto-skip. hls.js is configured with
