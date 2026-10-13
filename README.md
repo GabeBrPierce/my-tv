@@ -153,6 +153,11 @@ finished app.
   seeking isn't blocked by CORS, so this works independently of streams'
   cross-origin restrictions. Streams with no DVR window (live-edge only)
   just show a toast rather than doing nothing silently.
+- **Enter** (center key): pause / resume. A "Paused" badge stays on screen
+  while paused, and the softkey bar's center label flips between Pause and
+  Play. Changing channel resumes playback. If numeric channel entry is in
+  progress, Enter commits it instead. On a live stream, a long pause may
+  resume from a point the stream has since dropped.
 - **0-9**: jump straight to a channel number (numeric entry, 2s to commit).
   Channels are ordered by category (A-Z, "Other" last), then name — but
   each channel's number is stable and independent of that order. A

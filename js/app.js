@@ -17,6 +17,7 @@
  *    Favorites / Search / Settings)
  *  - SoftRight ("]") toggles a rotated, immersive full-screen mode: hides
  *    the ad banner, shows a fullscreen ad every 10 minutes instead
+ *  - Enter (center key) pauses/resumes; a "Paused" badge stays up meanwhile
  *  - a softkey legend at the bottom fades out a few seconds after the
  *    last key press, and reappears on the next one
  *  - background playback (off by default) + the "you can enable this"
@@ -49,7 +50,9 @@
   var channelEntryEl = document.getElementById("channel-entry");
   var channelEntryValueEl = document.getElementById("channel-entry-value");
   var softkeyBarEl = document.getElementById("softkey-bar");
+  var softkeyCenterEl = document.getElementById("softkey-center");
   var softkeyRightEl = document.getElementById("softkey-right");
+  var pauseIndicatorEl = document.getElementById("pause-indicator");
   var loadingEl = document.getElementById("loading");
   var errorEl = document.getElementById("error");
   var appEl = document.getElementById("app");
@@ -219,6 +222,26 @@
     channelEntryEl.classList.add("hidden");
   }
 
+  // --- Pause / play (Enter) -----------------------------------------------
+
+  function togglePause() {
+    var videoEl = Player.getVideoElement();
+    if (videoEl.paused) {
+      videoEl.play().catch(function () { /* needs a user gesture on some engines */ });
+    } else {
+      videoEl.pause();
+    }
+  }
+
+  /** Driven by the <video>'s own play/pause events rather than togglePause()
+   * so the badge and label stay right when something else pauses it too
+   * (e.g. the app being hidden). */
+  function syncPauseUi() {
+    var paused = Player.getVideoElement().paused;
+    pauseIndicatorEl.classList.toggle("hidden", !paused);
+    softkeyCenterEl.textContent = paused ? "Play" : "Pause";
+  }
+
   // --- Rotation / immersive mode (SoftRight) ----------------------------
 
   function toggleRotation() {
@@ -341,6 +364,8 @@
       if (channelEntryBuffer.length > 0) {
         clearTimeout(channelEntryTimer);
         commitChannelEntry();
+      } else {
+        togglePause();
       }
     } else if (key === "Backspace") {
       if (channelEntryBuffer.length > 0) {
@@ -398,6 +423,10 @@
       Ads.showBanner();
       showSoftkeyBar();
     });
+
+    var videoEl = Player.getVideoElement();
+    videoEl.addEventListener("play", syncPauseUi);
+    videoEl.addEventListener("pause", syncPauseUi);
 
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("visibilitychange", handleVisibilityChange);

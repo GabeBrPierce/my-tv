@@ -79,10 +79,15 @@
 
     <div id="toast" class="hidden"></div>
 
-    <!-- Softkey legend: SoftLeft opens the menu, SoftRight toggles full
-         screen. Fades out a few seconds after the last key press. -->
+    <!-- Stays up while the video is paused (Enter toggles pause/play). -->
+    <div id="pause-indicator" class="hidden"><span class="pause-icon"></span>Paused</div>
+
+    <!-- Softkey legend: SoftLeft opens the menu, Enter pauses/plays,
+         SoftRight toggles full screen. Fades out a few seconds after the
+         last key press. -->
     <div id="softkey-bar" class="faded">
       <span id="softkey-left">Menu</span>
+      <span id="softkey-center">Pause</span>
       <span id="softkey-right">Full Screen</span>
     </div>
 
