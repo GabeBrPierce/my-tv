@@ -34,6 +34,19 @@ LOGOS_URL = "https://iptv-org.github.io/api/logos.json"
 FEEDS_URL = "https://iptv-org.github.io/api/feeds.json"
 GUIDES_URL = "https://iptv-org.github.io/api/guides.json"
 
+# Keep in sync with js/blocklist.js (the app applies its own copy at runtime
+# too, so a stale channels.json can't leak these back in).
+BLOCKED_IDS = {"kaloopytv.us", "fashiontvsecrets.fr", "fashionbox.nl"}
+BLOCKED_CATEGORIES = {"xxx", "adult"}
+
+
+def is_blocked(ch):
+    if ch.get("is_nsfw"):
+        return True
+    if (ch.get("id") or "").lower() in BLOCKED_IDS:
+        return True
+    return bool(BLOCKED_CATEGORIES & {c.lower() for c in ch.get("categories", []) or []})
+
 
 def fetch_json(url):
     with urllib.request.urlopen(url, timeout=30) as resp:
@@ -137,6 +150,9 @@ def build(languages, categories_filter, require_subtitles_for_non_target,
     next_number = (max(existing_numbers.values()) + 1) if existing_numbers else 1
 
     for ch in channels:
+        if is_blocked(ch):
+            continue
+
         ch_id = ch.get("id")
         ch_streams = streams_by_channel.get(ch_id, [])
         if not ch_streams:

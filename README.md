@@ -17,6 +17,12 @@ finished app.
   applies the language/subtitles filter. **You still need to set
   `CHANNELS_URL`** to your actual repo's raw content URL before this does
   anything.
+- `js/blocklist.js` — channels that never appear in the app: specific ids
+  (currently `KaloopyTV.us`, `FashionTVSecrets.fr`, `FashionBox.nl`), any
+  channel in an `xxx`/`adult` category, or flagged `is_nsfw`. Applied right
+  after the list loads, so it also covers a stale cache.
+  `tools/build_channels.py` has a matching filter (keep the two in sync);
+  to block a channel, add its `id` to both.
 - `js/player.js` — loads a channel's stream into the `<video>` element,
   using native HLS where available and falling back to hls.js. Reports
   playback failures so the app can auto-skip. hls.js is configured with

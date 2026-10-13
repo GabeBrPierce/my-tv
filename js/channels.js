@@ -165,7 +165,10 @@ var Channels = (function () {
 
       function finish(data) {
         rawChannels = data.channels || [];
+        // Number first, then block: fallback numbers are positional, so
+        // dropping channels before numbering would renumber the rest.
         assignFallbackNumbers(rawChannels);
+        rawChannels = rawChannels.filter(function (ch) { return !Blocklist.isBlocked(ch); });
         allChannels = rawChannels.filter(function (ch) {
           return ch.enabled !== false;
         });
