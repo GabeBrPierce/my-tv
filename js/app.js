@@ -379,12 +379,12 @@
 
   // --- Startup -------------------------------------------------------------
 
-  /** e.g. "KaiOS 2.5.4 | cross-origin: xhr" or
-   * "KaiOS 3.0 | cross-origin: off (fetch: response opaque)". */
+  /** e.g. "KaiOS 3.1 | hls: hls.js | cross-origin: off (fetch: response opaque)". */
   function crossOriginStatus() {
     var ver = /KaiOS\/([\d.]+)/i.exec(navigator.userAgent);
     var mode = SystemFetch.isActive() ? "fetch" : SystemXhr.isActive() ? "xhr" : "off";
-    return "KaiOS " + (ver ? ver[1] : "?") + " | cross-origin: " + mode +
+    return "KaiOS " + (ver ? ver[1] : "?") + " | hls: " + (Player.usesNativeHls() ? "native" : "hls.js") +
+      " | cross-origin: " + mode +
       (mode === "off" ? " (fetch: " + SystemFetch.getReason() + ")" : "");
   }
 

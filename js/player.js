@@ -81,6 +81,7 @@ var Player = (function () {
 
   return {
     play: play,
+    usesNativeHls: supportsNativeHls,
     onError: onError,
     getVideoElement: getVideoElement
   };
